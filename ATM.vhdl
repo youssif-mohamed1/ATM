@@ -65,9 +65,7 @@ begin
         nxt<=Start;
 
     elsif prs=Enter_Pass then -- Entering password
-      if back = '1' then 
-        nxt <= Enter_Card;
-      elsif cancel = '1' then
+      if cancel = '1' then
         nxt <= Card_dispence;
       else
         pass_flag:='0';
