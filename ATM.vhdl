@@ -3,8 +3,8 @@ use ieee.std_logic_1164.all;
 
 entity ATM is                                                                                                                                                
   port (
-    button1, button2, button3, reset, clk , receipt_check, limit, with_money, divisble_5, ava_cash, ask_check:in std_logic;
-    reciept, money_return                               : out std_logic;
+    button1, button2, button3, back, cancel, reset, clk , receipt_check, limit, with_money, divisble_5, ava_cash, ask_check:in std_logic;
+    reciept, money_return, Balance_show                               : out std_logic;
     cash_reader                           : in std_logic;
     valid_pass:in std_logic_vector(2 downto 0);
     valid, balance_check:in std_logic
@@ -28,32 +28,33 @@ begin
     end if;
   end process seq;
 
-  comb : process (button1, button2, button3, reset, clk , receipt_check, limit,with_money,divisble_5,ava_cash,cash_reader,valid_pass,valid,balance_check)
-      variable withdrawn_done: std_logic;
-      variable pass_flag: std_logic;
-      variable reciept_check: std_logic;
+  comb : process (cancel, back, button1, button2, button3, reset, clk, receipt_check, limit, with_money, divisble_5, ava_cash, cash_reader, valid_pass, valid, balance_check)
+      variable withdrawn_done: std_logic := '0';
+      variable pass_flag: std_logic := '0';
+      variable reciept_check: std_logic := '0';
 
   begin
     if prs = start then     -- Start State
+        Balance_show <= '0';
+        reciept <= '0';
+        money_return <= '0';
         withdrawn_done:='0';       
       if button1 = '1' then -- with card
         nxt <= Enter_Card;
-      elsif button2 = '1' then -- without card
-        nxt <= Enter_Phone;
       else
         nxt <= Start;
       end if;
 
     elsif prs = Enter_Card then -- Enter Card State
-
-        if valid='1' then
+        if back = '1' then 
+          nxt <= start;
+        elsif valid='1' then
             nxt<=Enter_Pass;
         else
             nxt<= Card_dispence;    
         end if;
         
     elsif prs= Card_dispence then --Card dispense State
-
         if withdrawn_done='1' then 
             nxt<=dispense_cash;
         else 
@@ -63,30 +64,34 @@ begin
     elsif prs=dispense_cash then
         nxt<=Start;
 
-        
     elsif prs=Enter_Pass then -- Entering password
+      if back = '1' then 
+        nxt <= Enter_Card;
+      elsif cancel = '1' then
+        nxt <= Card_dispence;
+      else
+        pass_flag:='0';
+          L: for i in 0 to 2 Loop
+              if valid_pass(i)='1' then
+                pass_flag:='1';
+                exit;      
+              end if;   
+          end  loop L;
 
-      pass_flag:='0';
-        L: for i in 0 to 2 Loop
-            if valid_pass(i)='1' then
-              pass_flag:='1';
-              exit;      
-            end if;   
-        end  loop L;
-
-      if pass_flag='1' then 
-        nxt<= With_Card_menu;
-        else 
-        nxt<=Card_dispence;
-      end if;
-    
+        if pass_flag='1' then 
+          nxt<= With_Card_menu;
+          else 
+          nxt<=Card_dispence;
+        end if;
+      end if;         
     elsif prs = with_Card_menu then -- Menu State
-
-        if button1 = '1' then -- balance
+        if cancel = '1' then
+          nxt <= Card_dispence;
+        elsif button1 = '1' and button2 = '0' and button3 = '0' then -- balance
             nxt <= Balance;
-        elsif button2 = '1' then -- withdraw
+        elsif button2 = '1' and button1 = '0' and button3 = '0' then -- withdraw
             nxt <= withdraw;
-        elsif button3 = '1' then -- deposite
+        elsif button3 = '1' and button1 = '0' and button2 = '0' then -- deposite
             nxt <= deposit;
         else 
             nxt <= with_Card_menu;
@@ -94,24 +99,34 @@ begin
 
     
     elsif prs = Balance then -- Check Balance State
-          if receipt_check = '1' then
+          Balance_show <= '1';
+          if back = '1' then 
+            nxt <= With_Card_menu;
+          elsif cancel = '1' then
+            nxt <= Card_dispence;
+          elsif receipt_check = '1' then
             reciept<='1';
-            nxt<=Card_dispence;
+            nxt<=Card_dispence; 
           else
             reciept <= '0';
             nxt<=card_dispence;
           end if;  
     
     elsif prs = withdraw then -- Withdraw State
-        if limit='1' then
+        if back = '1' then 
+          nxt <= With_Card_menu;
+        elsif cancel = '1' then
+          nxt <= Card_dispence;
+        elsif limit='1' then
           nxt<=card_dispence;
         else
           nxt<=Enter_Money;
         end if;
 
     elsif prs = Enter_Money then -- Enter Money State in withdrawing
-
-        if with_money='1' and divisble_5='1' and ava_cash='1' and balance_check='1' then
+        if cancel = '1' then
+          nxt <= Card_dispence;
+        elsif with_money='1' and divisble_5='1' and ava_cash='1' and balance_check='1' then
           nxt <= print_reciept;
         else
           nxt <= Enter_Money;
@@ -127,13 +142,20 @@ begin
       end if;
       
     elsif prs = deposit then -- Deposit State
-      nxt<=Enter_Cash;
-
+        if back = '1' then 
+          nxt <= With_Card_menu;
+        elsif cancel = '1' then 
+          nxt <= Card_dispence;
+        else
+          nxt<=Enter_Cash;
+      end if;
     elsif prs = Enter_Cash then -- Enter_Cash State in Deposit
-      if cash_reader='1' or divisble_5 = '0' then
-        nxt<= return_money;
-      else
-        nxt <= ask;
+      if cancel = '1' then 
+        nxt <= Card_dispence;
+      elsif cash_reader='1' or divisble_5 = '0' then
+          nxt <= release_money;
+        else
+          nxt<= ask;
       end if;
 
     elsif prs = release_money then -- release State : return bad money
@@ -142,9 +164,9 @@ begin
       
     elsif prs = ask then -- ASK State after Deposit
       if ask_check ='1' then
-        nxt<=print_reciept;
+        nxt <= print_reciept;
       else 
-        nxt<= return_money;
+        nxt <= return_money;
       end if;
     
     elsif prs= return_money then -- return_money State: if user cancel the deposit process 
