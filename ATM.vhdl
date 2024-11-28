@@ -46,9 +46,7 @@ begin
       end if;
 
     elsif prs = Enter_Card then -- Enter Card State
-        if back = '1' then 
-          nxt <= start;
-        elsif valid='1' then
+        if valid='1' then
             nxt<=Enter_Pass;
         else
             nxt<= Card_dispence;    
