@@ -181,7 +181,6 @@ begin
         end if;
 
     elsif prs = print_reciept then --Print Receipt & Card Dispenese State
-      if receipt_check='1' then
         reciept<='1';
         nxt<=Card_dispence;
         nxt_o<="01011";
