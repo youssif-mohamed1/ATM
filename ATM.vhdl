@@ -4,7 +4,7 @@ use ieee.std_logic_1164.all;
 entity ATM is                                                                                                                                                
   port (
     button1, button2, button3, back, cancel, reset, clk , receipt_check, limit, with_money, divisble_5, ava_cash, ask_check:in std_logic;
-    reciept, money_return, Balance_show                               : out std_logic;
+    reciept, money_return, Balance_show, cash_show                            : out std_logic;
     cash_reader                           : in std_logic;
     valid_pass:in std_logic_vector(2 downto 0);
     valid, balance_check:in std_logic;
@@ -54,6 +54,7 @@ begin
     if prs = start then     -- Start State
         Balance_show <= '0';
         reciept <= '0';
+        cash_show<='0';
         money_return <= '0';
         withdrawn_done:='0';       
       if button1 = '1' then -- with card
@@ -83,6 +84,7 @@ begin
         end if;
     
     elsif prs=dispense_cash then
+        cash_show<='1';
         nxt<=Start;
         nxt_o <= "00000";  
 
@@ -166,8 +168,13 @@ begin
           nxt <= Card_dispence;
           nxt_o<="01011";
         elsif with_money='1' and divisble_5='1' and ava_cash='1' and balance_check='1' then
-          nxt <= print_reciept;
-          nxt_o <= "01010";
+          if receipt_check='1' then
+            nxt <= print_reciept;
+            nxt_o <= "01010";
+          else 
+            nxt <= Card_dispence;
+            nxt_o<="01011";
+          end if;
         else
           nxt <= Enter_Money;
           nxt_o <= "00100";
@@ -210,9 +217,12 @@ begin
       nxt_o <= "00001";
       
     elsif prs = ask then -- ASK State after Deposit
-      if ask_check ='1' then
+      if ask_check ='1'and receipt_check ='1' then
         nxt <= print_reciept;
         nxt_o <= "01010";
+      elsif ask_check ='1'and receipt_check ='0' then
+        nxt<=Card_dispence;
+        nxt_o<="01011";
       else 
         nxt <= return_money;
         nxt_o <= "01110";
